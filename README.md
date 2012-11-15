@@ -1,4 +1,0 @@
-praktischeInformatik
-====================
-
-Uebungsaufgaben
