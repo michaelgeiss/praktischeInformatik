@@ -1,0 +1,204 @@
+/**
+ * Skiplist
+ *
+ * Geiﬂ, Kowar, Veit 
+ */
+
+#include "Skiplist.h"
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include "Skiplist.h"
+
+//returns a random level
+template <typename my_type>
+int Skiplist<my_type>::calc_random_level()
+{
+	int lvl = 1;
+
+	while (rand() % 100 < p && lvl < max_level) 
+	{
+		++lvl;
+	}
+
+	return lvl;
+}
+
+//insert a node with value insert_val into the skiplist
+template <typename my_type>
+bool Skiplist<my_type>::insert( my_type insert_val )
+{
+	int new_level = calc_random_level();
+
+	//get vector with prev nodes per level
+	std::vector<Node<my_type>*> next_vec = get_next_vector(new_level, insert_val);
+
+	//the node is already in the skiplist, there is no need to insert it again
+	if(next_vec.empty())
+	{
+		return false;
+	}
+
+	Node<my_type>* new_node = new Node<my_type>(insert_val, new_level);
+
+	//reconnect pointers
+	for(unsigned int i = 0; i < next_vec.size(); ++i)
+	{
+		Node<my_type>* tmp = next_vec[i]->get_next(i) != NULL ? next_vec[i]->get_next(i) : NULL;
+		next_vec[i]->set_next(i, new_node);
+		new_node->set_next(i, tmp);
+	}
+
+	return true;
+}
+
+//returns a vector containing the previous nodes, for inserting a node with insert_val and level new_level
+template <typename my_type>
+std::vector<Node<my_type>*> Skiplist<my_type>::get_next_vector(int new_level, my_type insert_val)
+{
+	Node<my_type>* node = root;
+	std::vector<Node<my_type>*> next_vec;
+
+	for (int i = new_level - 1; i >= 0; --i)
+	{
+		//go to the next node until it is null, equal or greater
+		while (node->get_next(i) != NULL && (node->get_next(i)->get_content() < insert_val))
+		{
+			node = node->get_next(i);
+		}
+		
+		//if its equal there is no need for inserting it -> return
+		if (node->get_content() == insert_val)
+		{
+			next_vec.clear();
+			return next_vec;
+		}
+
+		//the node must be smaller, so we add it to our vector
+		next_vec.push_back(node);
+	}	
+
+	//reverse vector
+	std::vector<Node<my_type>*> ret_next_vec;
+	for (int i = next_vec.size()-1; i >= 0; --i)
+		ret_next_vec.push_back(next_vec[i]);
+
+	return ret_next_vec;
+}
+
+//searches for a node with search_val and returns it - otherwise NULL
+template <typename my_type>
+Node<my_type>* Skiplist<my_type>::search(my_type search_val)
+{
+	//if the list is empty, there is nothing to do
+	if (root != NULL && root->get_next(0) != NULL)
+	{
+		Node<my_type>* node = root;
+	
+		for (int i = max_level-1; i >= 0; --i)
+		{
+			//go to the next node until we find NULL or a greater/equal one
+			while (node->get_next(i) != NULL && node->get_next(i)->get_content() < search_val)
+			{
+				node = node->get_next(i);
+			}
+		
+			//yey, we found or node
+			if (node->get_next(i) != NULL && node->get_next(i)->get_content() == search_val)
+			{
+				return node;
+			}
+		}	
+	}
+
+	//we reached the last pointer on level 0 - the node we are searching for is not in the list
+	return NULL;
+}
+
+//print a list of nodes in the skiplist
+template <typename my_type>
+void Skiplist<my_type>::print()
+{
+
+	if (root != NULL && root->get_next(0) != NULL)
+	{
+		Node<my_type>* print_node = root;
+		int cnt = 0;
+
+		while (print_node->get_next(0) != NULL)
+		{
+			print_node = print_node->get_next(0);
+			std::cout << "Node " << cnt++ << " Value: " << print_node->get_content() << " Level: " << print_node->get_level() << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "The list is empty!" << std::endl;
+	}
+}
+
+//visualizes the list of nodes in the skiplist (including levels and pointers)
+template <typename my_type>
+void Skiplist<my_type>::print_vis()
+{
+
+	if (root != NULL && root->get_next(0) != NULL)
+	{
+		for (int i = max_level - 1; i >= 0; --i)
+		{
+			Node<my_type>* print_node = root;
+			int cnt = 0;
+
+			std::cout << "Level: " << i << ":";
+
+			while (print_node->get_next(i) != NULL)
+			{
+				print_node = print_node->get_next(i);
+				std::cout << print_node->get_content() << "(" << print_node->get_level() << ") -> ";
+			}
+
+			std::cout << " NULL " << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "The list is empty!" << std::endl;
+	}
+}
+
+//Constructor
+template <typename my_type>
+Skiplist<my_type>::Skiplist( int size )
+{
+	srand(time(NULL));
+	p = 50;
+	max_level = (int)log((double)size);
+	root = new Node<my_type>(-1, max_level);
+	
+}
+
+//Destructor
+template <typename my_type>
+Skiplist<my_type>::~Skiplist()
+{
+	std::cout << "Destroying list...." << std::endl;
+	while (root->get_next(0) != NULL)
+	{
+		Node<my_type>* node_ptr = root;
+		Node<my_type>* node_prev = root;
+
+		while (node_ptr->get_next(0) != NULL)
+		{
+			node_prev = node_ptr;
+			node_ptr = node_ptr->get_next(0);
+		}
+
+		delete node_ptr;
+		node_prev->set_next(0,0);
+	}
+
+	delete root;
+
+	std::cout << "Success!" << std::endl;
+}
